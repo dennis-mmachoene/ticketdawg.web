@@ -1,6 +1,6 @@
 import axios from 'axios';
 
-const API_BASE = process.env.REACT_APP_API_URL || 'http://172.20.10.2:5000/api';
+const API_BASE = process.env.REACT_APP_API_URL || 'https://ticket-dawg-server.onrender.com/api';
 
 class ApiService {
   constructor() {
