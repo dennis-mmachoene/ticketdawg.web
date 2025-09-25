@@ -36,7 +36,12 @@ const LoginScreen = () => {
         {/* Logo and Header */}
         <div className="text-center mb-8 animate-fade-in">
           <div className="w-20 h-20 bg-primary-600 rounded-2xl flex items-center justify-center mx-auto mb-6 shadow-medium">
-            <span className="text-white text-2xl font-bold">AS</span>
+           <img 
+  src="/logo (2).png" 
+  alt="Pool Party Logo"
+  className="text-white text-2xl font-bold"
+/>
+
           </div>
           <h1 className="text-3xl font-bold text-secondary-900 mb-2">Pool Party</h1>
           <h2 className="text-xl text-secondary-700 mb-2">Ticketing System</h2>

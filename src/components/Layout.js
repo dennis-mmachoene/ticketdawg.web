@@ -1,13 +1,13 @@
 import React, { useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
-import { 
-  Menu, 
-  X, 
-  LayoutDashboard, 
-  Ticket, 
-  Scan, 
-  Users, 
+import {
+  Menu,
+  X,
+  LayoutDashboard,
+  Ticket,
+  Scan,
+  Users,
   LogOut,
   ChevronDown
 } from 'lucide-react';
@@ -49,7 +49,12 @@ const Layout = ({ children }) => {
             <div className="flex items-center space-x-4">
               <div className="flex items-center space-x-3">
                 <div className="w-10 h-10 bg-primary-600 rounded-lg flex items-center justify-center">
-                  <span className="text-white font-bold text-lg">AS</span>
+                  <img
+                    src="/logo (2).png"
+                    alt="Pool Party Logo"
+                    className="w-10 h-10 object-contain"
+                  />
+
                 </div>
                 <div>
                   <h1 className="text-xl font-bold text-secondary-900">Pool Party</h1>
@@ -63,16 +68,15 @@ const Layout = ({ children }) => {
               {navigation.map((item) => {
                 const Icon = item.icon;
                 const isActive = location.pathname === item.href;
-                
+
                 return (
                   <Link
                     key={item.name}
                     to={item.href}
-                    className={`px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 flex items-center space-x-2 ${
-                      isActive
+                    className={`px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 flex items-center space-x-2 ${isActive
                         ? 'bg-primary-100 text-primary-700 shadow-soft'
                         : 'text-secondary-600 hover:text-secondary-900 hover:bg-secondary-50'
-                    }`}
+                      }`}
                   >
                     <Icon size={16} />
                     <span>{item.name}</span>
@@ -106,8 +110,8 @@ const Layout = ({ children }) => {
                 {/* User Dropdown Menu */}
                 {isUserMenuOpen && (
                   <>
-                    <div 
-                      className="fixed inset-0 z-10" 
+                    <div
+                      className="fixed inset-0 z-10"
                       onClick={() => setIsUserMenuOpen(false)}
                     />
                     <div className="absolute right-0 mt-2 w-56 bg-white rounded-lg shadow-hard border border-secondary-200 z-20">
@@ -147,8 +151,8 @@ const Layout = ({ children }) => {
       {/* Mobile Navigation */}
       {isMobileMenuOpen && (
         <>
-          <div 
-            className="fixed inset-0 z-40 bg-black bg-opacity-50 md:hidden" 
+          <div
+            className="fixed inset-0 z-40 bg-black bg-opacity-50 md:hidden"
             onClick={closeMobileMenu}
           />
           <div className="fixed top-16 inset-x-0 z-50 bg-white border-t border-secondary-200 shadow-hard md:hidden">
@@ -156,17 +160,16 @@ const Layout = ({ children }) => {
               {navigation.map((item) => {
                 const Icon = item.icon;
                 const isActive = location.pathname === item.href;
-                
+
                 return (
                   <Link
                     key={item.name}
                     to={item.href}
                     onClick={closeMobileMenu}
-                    className={`flex items-center space-x-3 px-4 py-3 rounded-lg text-sm font-medium transition-all duration-200 ${
-                      isActive
+                    className={`flex items-center space-x-3 px-4 py-3 rounded-lg text-sm font-medium transition-all duration-200 ${isActive
                         ? 'bg-primary-100 text-primary-700 shadow-soft'
                         : 'text-secondary-600 hover:text-secondary-900 hover:bg-secondary-50'
-                    }`}
+                      }`}
                   >
                     <Icon size={20} />
                     <span>{item.name}</span>
