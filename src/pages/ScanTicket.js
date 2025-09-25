@@ -37,7 +37,7 @@ const ScanTicket = () => {
       setError('');
       setHasPermission(null);
       
-      // Check camera permissions
+      // Check camera permissions first
       try {
         await navigator.mediaDevices.getUserMedia({ video: true });
         setHasPermission(true);
@@ -47,26 +47,47 @@ const ScanTicket = () => {
         return;
       }
 
-      const html5QrCode = new Html5Qrcode("qr-reader");
-      html5QrcodeRef.current = html5QrCode;
-
-      const config = {
-        fps: 10,
-        qrbox: { width: 250, height: 250 },
-        aspectRatio: 1.777778
-      };
-
-      await html5QrCode.start(
-        { facingMode: "environment" },
-        config,
-        onScanSuccess,
-        onScanFailure
-      );
-
+      // Set scanning state first to render the qr-reader element
       setIsScanning(true);
+
+      // Wait a moment for the DOM to update
+      setTimeout(async () => {
+        try {
+          // Check if element exists
+          const qrReaderElement = document.getElementById("qr-reader");
+          if (!qrReaderElement) {
+            throw new Error('QR reader element not found in DOM');
+          }
+
+          const html5QrCode = new Html5Qrcode("qr-reader");
+          html5QrcodeRef.current = html5QrCode;
+
+          const config = {
+            fps: 10,
+            qrbox: { width: 250, height: 250 },
+            aspectRatio: 1.777778,
+            rememberLastUsedCamera: true,
+            supportedScanTypes: []
+          };
+
+          await html5QrCode.start(
+            { facingMode: "environment" },
+            config,
+            onScanSuccess,
+            onScanFailure
+          );
+
+        } catch (err) {
+          console.error("Failed to start scanning:", err);
+          setError(`Failed to start camera: ${err.message}`);
+          setIsScanning(false);
+        }
+      }, 100);
+
     } catch (err) {
-      console.error("Failed to start scanning:", err);
-      setError('Failed to start camera. Please ensure camera permissions are granted.');
+      console.error("Failed to initialize scanning:", err);
+      setError('Failed to initialize scanner. Please try again.');
+      setIsScanning(false);
     }
   };
 
@@ -74,10 +95,14 @@ const ScanTicket = () => {
     if (html5QrcodeRef.current && isScanning) {
       try {
         await html5QrcodeRef.current.stop();
+        await html5QrcodeRef.current.clear();
         html5QrcodeRef.current = null;
         setIsScanning(false);
       } catch (err) {
         console.error("Failed to stop scanning:", err);
+        // Force stop scanning even if there's an error
+        setIsScanning(false);
+        html5QrcodeRef.current = null;
       }
     }
   };
@@ -132,10 +157,18 @@ const ScanTicket = () => {
     // Ignore scan failures as they're expected when no QR code is in view
   };
 
-  const resetScanner = () => {
+  const resetScanner = async () => {
     setScanResult(null);
     setLastScannedTicket(null);
     setError('');
+    
+    // If currently scanning, restart it
+    if (isScanning) {
+      await stopScanning();
+      setTimeout(() => {
+        startScanning();
+      }, 500);
+    }
   };
 
   const getScanResultIcon = () => {
@@ -208,11 +241,11 @@ const ScanTicket = () => {
                   </div>
                 ) : (
                   <div className="space-y-4">
-                    <div className="relative bg-black rounded-lg overflow-hidden">
-                      <div id="qr-reader" className="w-full"></div>
+                    <div className="relative bg-black rounded-lg overflow-hidden" style={{ minHeight: '300px' }}>
+                      <div id="qr-reader" className="w-full h-full"></div>
                       
                       {isValidating && (
-                        <div className="absolute inset-0 bg-black bg-opacity-50 flex items-center justify-center">
+                        <div className="absolute inset-0 bg-black bg-opacity-50 flex items-center justify-center z-10">
                           <div className="bg-white rounded-lg p-6 text-center">
                             <div className="loading-spinner mx-auto mb-2"></div>
                             <p className="text-secondary-700">Validating ticket...</p>
@@ -350,6 +383,19 @@ const ScanTicket = () => {
                 This feature requires camera access to scan QR codes. 
                 Please allow camera permissions when prompted.
               </p>
+            </div>
+
+            {/* Troubleshooting */}
+            <div className="card bg-gray-50 border-gray-200">
+              <h4 className="font-semibold text-gray-900 mb-2">
+                🔧 Troubleshooting
+              </h4>
+              <ul className="text-gray-700 text-xs space-y-1">
+                <li>• Ensure good lighting</li>
+                <li>• Hold camera steady</li>
+                <li>• Try refreshing the page</li>
+                <li>• Check browser permissions</li>
+              </ul>
             </div>
           </div>
         </div>
