@@ -1,7 +1,7 @@
 import axios from 'axios';
 
-const API_BASE = process.env.REACT_APP_API_URL || 'https://ticket-dawg-server.onrender.com/api';
-
+const API_BASE =  'https://ticket-dawg-server.onrender.com/api';
+//"http://172.20.10.2:5000/api"; //||
 class ApiService {
   constructor() {
     this.client = axios.create({
@@ -9,7 +9,11 @@ class ApiService {
       headers: {
         'Content-Type': 'application/json',
       },
+     
+
     });
+    
+    console.log("API BASE URL:", process.env.REACT_APP_API_URL);
 
     // Add request interceptor to include auth token
     this.client.interceptors.request.use(
