@@ -13,7 +13,7 @@ class ApiService {
 
     });
     
-    console.log("API BASE URL:", process.env.REACT_APP_API_URL);
+    //console.log("API BASE URL:", process.env.REACT_APP_API_URL);
 
     // Add request interceptor to include auth token
     this.client.interceptors.request.use(
