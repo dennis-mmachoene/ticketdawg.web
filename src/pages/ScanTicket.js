@@ -110,7 +110,10 @@ const ScanTicket = () => {
   const onScanSuccess = async (decodedText) => {
     if (isValidating) return;
 
+    // Stop scanning immediately to prevent re-scans
     setIsValidating(true);
+    await stopScanning();
+    
     setScanResult(null);
     setError('');
 
@@ -122,9 +125,6 @@ const ScanTicket = () => {
         title: 'Ticket Validated! ✅',
         message: `Ticket ${response.data.ticketID} for ${response.data.email} has been successfully validated.`
       });
-      
-      // Stop scanning after successful validation
-      await stopScanning();
       
     } catch (error) {
       let resultType = 'error';
