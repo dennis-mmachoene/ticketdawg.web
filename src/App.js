@@ -7,6 +7,7 @@ import Dashboard from './pages/Dashboard';
 import IssueTicket from './pages/IssueTicket';
 import ScanTicket from './pages/ScanTicket';
 import ManageUsers from './pages/ManageUsers';
+import ActivityMonitor from './pages/ActivityMonitor';
 import Layout from './components/Layout';
 
 // Protected Route Component
@@ -79,7 +80,7 @@ const AppRoutes = () => {
       <Route 
         path="/scan-ticket" 
         element={
-          <ProtectedRoute>
+          <ProtectedRoute adminOnly={true}>
             <ScanTicket />
           </ProtectedRoute>
         } 

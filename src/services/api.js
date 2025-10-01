@@ -1,7 +1,7 @@
 import axios from 'axios';
 
-const API_BASE =  'https://ticket-dawg-server.onrender.com/api';
-//"http://172.20.10.2:5000/api"; //||
+const API_BASE ='https://ticket-dawg-server.onrender.com/api';
+
 class ApiService {
   constructor() {
     this.client = axios.create({
@@ -9,11 +9,7 @@ class ApiService {
       headers: {
         'Content-Type': 'application/json',
       },
-     
-
     });
-    
-    //console.log("API BASE URL:", process.env.REACT_APP_API_URL);
 
     // Add request interceptor to include auth token
     this.client.interceptors.request.use(
@@ -96,6 +92,30 @@ class ApiService {
 
   async initializeTickets() {
     return this.client.post('/tickets/initialize');
+  }
+
+  // Activity endpoints
+  async getActivityLogs(filters = {}) {
+    const params = new URLSearchParams();
+    Object.entries(filters).forEach(([key, value]) => {
+      if (value) params.append(key, value.toString());
+    });
+    
+    const query = params.toString();
+    return this.client.get(`/activity/logs${query ? '?' + query : ''}`);
+  }
+
+  async getUserStats(userId) {
+    return this.client.get(`/activity/user-stats/${userId}`);
+  }
+
+  async getSystemStats(startDate = null, endDate = null) {
+    const params = new URLSearchParams();
+    if (startDate) params.append('startDate', startDate);
+    if (endDate) params.append('endDate', endDate);
+    
+    const query = params.toString();
+    return this.client.get(`/activity/system-stats${query ? '?' + query : ''}`);
   }
 }
 
