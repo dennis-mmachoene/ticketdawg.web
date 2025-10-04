@@ -80,7 +80,7 @@ const AppRoutes = () => {
       <Route 
         path="/scan-ticket" 
         element={
-          <ProtectedRoute adminOnly={true}>
+          <ProtectedRoute>
             <ScanTicket />
           </ProtectedRoute>
         } 
