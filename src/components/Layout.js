@@ -23,8 +23,8 @@ const Layout = ({ children }) => {
   const navigation = [
     { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
     { name: 'Issue Ticket', href: '/issue-ticket', icon: Ticket },
-    ...(isAdmin ? [
-      { name: 'Scan QR Code', href: '/scan-ticket', icon: Scan },
+    { name: 'Scan QR Code', href: '/scan-ticket', icon: Scan },
+    ...(isAdmin ? [ 
       { name: 'Manage Users', href: '/manage-users', icon: Users },
       { name: 'Activity Monitor', href: '/activity-monitor', icon: Activity },
     ] : []),
