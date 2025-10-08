@@ -95,6 +95,14 @@ const AppRoutes = () => {
           </ProtectedRoute>
         } 
       />
+      <Route 
+      pathe="/activity-monitor"
+      element={
+        <ProtectedRoute adminOnly={true}>
+          <ActivityMonitor />
+          </ProtectedRoute>
+          }
+          />
       
       {/* Catch all route */}
       <Route path="*" element={<Navigate to="/" replace />} />
