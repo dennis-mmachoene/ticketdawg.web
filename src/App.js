@@ -71,7 +71,7 @@ const AppRoutes = () => {
       <Route 
         path="/issue-ticket" 
         element={
-          <ProtectedRoute adminOnly={true}>
+          <ProtectedRoute>
             <IssueTicket />
           </ProtectedRoute>
         } 
