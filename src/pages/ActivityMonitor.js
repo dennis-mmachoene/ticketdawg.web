@@ -179,7 +179,7 @@ const ActivityMonitor = () => {
                       </div>
                       <div>
                         <p className="font-medium text-secondary-900">{user.username}</p>
-                        <p className="text-xs text-secondary-500">{user.role.toUpperCase()}</p>
+                        <p className="text-xs text-secondary-500">{user.role?.toUpperCase()}</p>
                       </div>
                     </div>
                     <div className="text-right">
@@ -286,7 +286,7 @@ const ActivityMonitor = () => {
                         {log.user?.username}
                       </div>
                       <div className="text-xs text-secondary-500">
-                        {log.user?.role.toUpperCase()}
+                        {log.user?.role?.toUpperCase()}
                       </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
@@ -295,19 +295,19 @@ const ActivityMonitor = () => {
                       </span>
                     </td>
                     <td className="px-6 py-4 text-sm text-secondary-600">
-                      {log.details.ticketID && (
+                      {log.details?.ticketID && (
                         <div className="mb-1">
-                          <span className="font-medium">Ticket:</span> {log.details.ticketID}
+                          <span className="font-medium">Ticket:</span> {log.details?.ticketID}
                         </div>
                       )}
-                      {log.details.ticketEmail && (
+                      {log.details?.ticketEmail && (
                         <div>
-                          <span className="font-medium">Email:</span> {log.details.ticketEmail}
+                          <span className="font-medium">Email:</span> {log.details?.ticketEmail}
                         </div>
                       )}
-                      {log.details.targetUser && (
+                      {log.details?.targetUser && (
                         <div>
-                          <span className="font-medium">Target:</span> {log.details.targetUser}
+                          <span className="font-medium">Target:</span> {log.details?.targetUser}
                         </div>
                       )}
                     </td>
@@ -403,9 +403,9 @@ const ActivityMonitor = () => {
                           <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${getActionColor(activity.action)}`}>
                             {activity.action.replace('_', ' ').toUpperCase()}
                           </span>
-                          {activity.details.ticketID && (
+                          {activity.details?.ticketID && (
                             <p className="text-xs text-secondary-600 mt-1">
-                              Ticket: {activity.details.ticketID}
+                              Ticket: {activity.details?.ticketID}
                             </p>
                           )}
                         </div>
