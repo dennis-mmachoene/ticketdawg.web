@@ -156,11 +156,11 @@ const LoginScreen = () => {
           <div className="text-center">
             <h4 className="font-semibold text-secondary-900 mb-3">Event Information</h4>
             <div className="space-y-2 text-sm text-secondary-600">
-              <p>📅 <span className="font-medium">04 October 2025</span></p>
-              <p>🕒 <span className="font-medium">Starts at 12:00</span></p>
-              <p>🎉 BOB (Bring your own bottles)</p>
-              <p>🍸 Free food and cocktails provided</p>
-              <p>🚌 Free transport available</p>
+              <p>📅 <span className="font-medium">19 September 2026</span></p>
+              <p>🕒 <span className="font-medium">12:00 till late</span></p>
+              <p>📍 Ramawela Guest House</p>
+              <p>🎵 Music · 🍔 Food · 🏊 Swimming</p>
+              <p>🗳️ Vote in the TUT SRC elections to get your ticket</p>
             </div>
           </div>
         </div>

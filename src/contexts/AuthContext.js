@@ -6,9 +6,7 @@ const AuthContext = createContext();
 
 export const useAuth = () => {
   const context = useContext(AuthContext);
-  if (context === undefined) {
-    throw new Error('useAuth must be used within an AuthProvider');
-  }
+  if (context === undefined) throw new Error('useAuth must be used within an AuthProvider');
   return context;
 };
 
@@ -18,21 +16,17 @@ export const AuthProvider = ({ children }) => {
   const [isLoading, setIsLoading] = useState(true);
   const navigate = useNavigate();
 
-  useEffect(() => {
-    loadStoredAuth();
-  }, []);
+  useEffect(() => { loadStoredAuth(); }, []);
 
   const loadStoredAuth = async () => {
     try {
       const storedToken = localStorage.getItem('token');
       const storedUser = localStorage.getItem('user');
-
       if (storedToken && storedUser) {
         setToken(storedToken);
         setUser(JSON.parse(storedUser));
       }
     } catch (error) {
-      console.error('Error loading stored auth:', error);
       localStorage.removeItem('token');
       localStorage.removeItem('user');
     } finally {
@@ -44,29 +38,18 @@ export const AuthProvider = ({ children }) => {
     try {
       setIsLoading(true);
       const response = await api.login(username, password);
-
       if (response.success) {
         const { token: newToken, user: newUser } = response.data;
-        
-        // Store in localStorage
         localStorage.setItem('token', newToken);
         localStorage.setItem('user', JSON.stringify(newUser));
-
         setToken(newToken);
         setUser(newUser);
-        
-        // Navigate to dashboard
         navigate('/dashboard');
         return { success: true };
-      } else {
-        return { success: false, error: response.error };
       }
+      return { success: false, error: response.error };
     } catch (error) {
-      console.error('Login error:', error);
-      return { 
-        success: false, 
-        error: error.message || 'Network error. Please try again.' 
-      };
+      return { success: false, error: error.message || 'Network error. Please try again.' };
     } finally {
       setIsLoading(false);
     }
@@ -74,28 +57,21 @@ export const AuthProvider = ({ children }) => {
 
   const logout = async () => {
     try {
-      localStorage.removeItem('token');
-      localStorage.removeItem('user');
-      setToken(null);
-      setUser(null);
-      navigate('/');
+      await api.logout();
     } catch (error) {
-      console.error('Logout error:', error);
+      // ignore network/logout errors, clear locally anyway
     }
+    localStorage.removeItem('token');
+    localStorage.removeItem('user');
+    setToken(null);
+    setUser(null);
+    navigate('/');
   };
 
-  const value = {
-    user,
-    token,
-    isLoading,
-    login,
-    logout,
-    isAdmin: user?.role === 'admin',
-  };
+  const isAdmin = user?.role === 'admin';
+  const canIssue = isAdmin || (user?.permissions || []).includes('issue');
+  const canScan = isAdmin || (user?.permissions || []).includes('scan');
 
-  return (
-    <AuthContext.Provider value={value}>
-      {children}
-    </AuthContext.Provider>
-  );
+  const value = { user, token, isLoading, login, logout, isAdmin, canIssue, canScan };
+  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 };

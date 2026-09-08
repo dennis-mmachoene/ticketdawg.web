@@ -1,20 +1,10 @@
 import React, { useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
-import { 
-  Menu, 
-  X, 
-  LayoutDashboard, 
-  Ticket, 
-  Scan, 
-  Users, 
-  LogOut,
-  ChevronDown,
-  Activity
-} from 'lucide-react';
+import { Menu, X, LayoutDashboard, Ticket, Scan, Users, LogOut, ChevronDown, Activity } from 'lucide-react';
 
 const Layout = ({ children }) => {
-  const { user, logout, isAdmin } = useAuth();
+  const { user, logout, isAdmin, canIssue, canScan } = useAuth();
   const location = useLocation();
   const navigate = useNavigate();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
@@ -22,34 +12,33 @@ const Layout = ({ children }) => {
 
   const navigation = [
     { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
-    { name: 'Issue Ticket', href: '/issue-ticket', icon: Ticket },
-    { name: 'Scan QR Code', href: '/scan-ticket', icon: Scan },
-    ...(isAdmin ? [ 
-      { name: 'Manage Users', href: '/manage-users', icon: Users },
-      { name: 'Activity Monitor', href: '/activity-monitor', icon: Activity },
-    ] : []),
+    ...(canIssue ? [{ name: 'Issue Ticket', href: '/issue-ticket', icon: Ticket }] : []),
+    ...(canScan ? [{ name: 'Scan QR Code', href: '/scan-ticket', icon: Scan }] : []),
+    ...(isAdmin
+      ? [
+          { name: 'Manage Users', href: '/manage-users', icon: Users },
+          { name: 'Activity Monitor', href: '/activity-monitor', icon: Activity },
+        ]
+      : []),
   ];
+
+  const roleLabel = isAdmin
+    ? 'Super Admin'
+    : [canIssue && 'Ticketer', canScan && 'Scanner'].filter(Boolean).join(' & ') || 'Staff';
 
   const handleLogout = async () => {
     await logout();
     navigate('/');
   };
 
-  const toggleMobileMenu = () => {
-    setIsMobileMenuOpen(!isMobileMenuOpen);
-  };
-
-  const closeMobileMenu = () => {
-    setIsMobileMenuOpen(false);
-  };
+  const toggleMobileMenu = () => setIsMobileMenuOpen(!isMobileMenuOpen);
+  const closeMobileMenu = () => setIsMobileMenuOpen(false);
 
   return (
     <div className="min-h-screen bg-slate-50">
-      {/* Navigation Header */}
       <header className="bg-white shadow-soft border-b border-secondary-100">
         <div className="container-custom">
           <div className="flex justify-between items-center h-16">
-            {/* Logo and Brand */}
             <div className="flex items-center space-x-4">
               <div className="flex items-center space-x-3">
                 <div className="w-10 h-10 bg-primary-600 rounded-lg flex items-center justify-center">
@@ -62,12 +51,10 @@ const Layout = ({ children }) => {
               </div>
             </div>
 
-            {/* Desktop Navigation */}
             <nav className="hidden md:flex space-x-1">
               {navigation.map((item) => {
                 const Icon = item.icon;
                 const isActive = location.pathname === item.href;
-                
                 return (
                   <Link
                     key={item.name}
@@ -85,9 +72,7 @@ const Layout = ({ children }) => {
               })}
             </nav>
 
-            {/* User Menu */}
             <div className="flex items-center space-x-4">
-              {/* User Dropdown */}
               <div className="relative">
                 <button
                   onClick={() => setIsUserMenuOpen(!isUserMenuOpen)}
@@ -100,26 +85,20 @@ const Layout = ({ children }) => {
                   </div>
                   <div className="hidden md:block text-left">
                     <p className="text-sm font-medium text-secondary-900">{user?.username}</p>
-                    <p className="text-xs text-secondary-500">
-                      {isAdmin ? 'Super Admin' : 'Ticket Issuer'}
-                    </p>
+                    <p className="text-xs text-secondary-500">{roleLabel}</p>
                   </div>
                   <ChevronDown size={16} className="text-secondary-400" />
                 </button>
 
-                {/* User Dropdown Menu */}
                 {isUserMenuOpen && (
                   <>
-                    <div 
-                      className="fixed inset-0 z-10" 
-                      onClick={() => setIsUserMenuOpen(false)}
-                    />
+                    <div className="fixed inset-0 z-10" onClick={() => setIsUserMenuOpen(false)} />
                     <div className="absolute right-0 mt-2 w-56 bg-white rounded-lg shadow-hard border border-secondary-200 z-20">
                       <div className="p-4 border-b border-secondary-100">
                         <p className="text-sm font-medium text-secondary-900">{user?.username}</p>
                         <p className="text-sm text-secondary-500">{user?.email}</p>
                         <span className={`inline-block mt-2 badge ${isAdmin ? 'badge-admin' : 'badge-issuer'}`}>
-                          {isAdmin ? 'ADMIN' : 'ISSUER'}
+                          {roleLabel}
                         </span>
                       </div>
                       <div className="p-2">
@@ -136,7 +115,6 @@ const Layout = ({ children }) => {
                 )}
               </div>
 
-              {/* Mobile menu button */}
               <button
                 onClick={toggleMobileMenu}
                 className="md:hidden p-2 rounded-lg hover:bg-secondary-100 transition-colors duration-200"
@@ -148,19 +126,14 @@ const Layout = ({ children }) => {
         </div>
       </header>
 
-      {/* Mobile Navigation */}
       {isMobileMenuOpen && (
         <>
-          <div 
-            className="fixed inset-0 z-40 bg-black bg-opacity-50 md:hidden" 
-            onClick={closeMobileMenu}
-          />
+          <div className="fixed inset-0 z-40 bg-black bg-opacity-50 md:hidden" onClick={closeMobileMenu} />
           <div className="fixed top-16 inset-x-0 z-50 bg-white border-t border-secondary-200 shadow-hard md:hidden">
             <nav className="p-4 space-y-2">
               {navigation.map((item) => {
                 const Icon = item.icon;
                 const isActive = location.pathname === item.href;
-                
                 return (
                   <Link
                     key={item.name}
@@ -182,10 +155,7 @@ const Layout = ({ children }) => {
         </>
       )}
 
-      {/* Main Content */}
-      <main className="flex-1">
-        {children}
-      </main>
+      <main className="flex-1">{children}</main>
     </div>
   );
 };
