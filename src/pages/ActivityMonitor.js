@@ -4,7 +4,6 @@ import {
   Activity, 
   Users, 
   TrendingUp, 
-  Calendar,
   Filter,
   Download,
   RefreshCw,
@@ -18,7 +17,6 @@ import LoadingSpinner from '../components/LoadingSpinner';
 const ActivityMonitor = () => {
   const [logs, setLogs] = useState([]);
   const [systemStats, setSystemStats] = useState(null);
-  const [selectedUser, setSelectedUser] = useState(null);
   const [userStats, setUserStats] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
   const [filters, setFilters] = useState({
@@ -30,6 +28,7 @@ const ActivityMonitor = () => {
 
   useEffect(() => {
     loadData();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [filters]);
 
   const loadData = async () => {
@@ -53,7 +52,6 @@ const ActivityMonitor = () => {
     try {
       const response = await api.getUserStats(userId);
       setUserStats(response.data);
-      setSelectedUser(userId);
     } catch (error) {
       console.error('Error loading user stats:', error);
     }
