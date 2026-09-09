@@ -40,6 +40,7 @@ class ApiService {
   async createUser(userData) { return this.client.post('/auth/register', userData); }
   async deleteUser(userId) { return this.client.delete(`/auth/users/${userId}`); }
   async forceLogout(userId) { return this.client.post(`/auth/users/${userId}/force-logout`); }
+  async updateUserPermissions(userId, permissions) { return this.client.patch(`/auth/users/${userId}/permissions`, { permissions }); }
 
   // Tickets
   async getTicketStats() { return this.client.get('/tickets/stats'); }

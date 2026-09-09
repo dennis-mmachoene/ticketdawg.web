@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { api } from '../services/api';
-import { Plus, Trash2, RefreshCw, User, Mail, Lock, Calendar, Ticket, Scan, AlertCircle, X, LogOut } from 'lucide-react';
+import { Plus, Trash2, RefreshCw, User, Mail, Lock, Calendar, Ticket, Scan, AlertCircle, X, LogOut, Pencil } from 'lucide-react';
 import LoadingSpinner from '../components/LoadingSpinner';
 
 const emptyUser = { username: '', email: '', password: '', permissions: [] };
@@ -15,6 +15,11 @@ const ManageUsers = () => {
   const [isCreating, setIsCreating] = useState(false);
   const [error, setError] = useState('');
   const [newUser, setNewUser] = useState(emptyUser);
+
+  // Edit-roles modal state
+  const [editUser, setEditUser] = useState(null);
+  const [editPerms, setEditPerms] = useState([]);
+  const [isSaving, setIsSaving] = useState(false);
 
   useEffect(() => { loadUsers(); }, []);
 
@@ -80,10 +85,50 @@ const ManageUsers = () => {
 
   const closeModal = () => { setShowCreateModal(false); setNewUser(emptyUser); setError(''); };
 
+  const openEdit = (u) => { setEditUser(u); setEditPerms(u.permissions || []); setError(''); };
+  const closeEdit = () => { setEditUser(null); setEditPerms([]); setError(''); };
+  const toggleEditPerm = (perm) => {
+    setEditPerms((cur) => (cur.includes(perm) ? cur.filter((p) => p !== perm) : [...cur, perm]));
+  };
+  const saveEdit = async () => {
+    if (editPerms.length === 0) { setError('Select at least one role'); return; }
+    setIsSaving(true);
+    try {
+      await api.updateUserPermissions(editUser.id, editPerms);
+      closeEdit();
+      loadUsers();
+    } catch (err) {
+      setError(err.message || 'Failed to update roles');
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
   const permBadges = (u) => {
     if (u.role === 'admin') return ['Super Admin'];
     return (u.permissions || []).map((p) => (p === 'issue' ? 'Ticketer' : 'Scanner'));
   };
+
+  const PermPicker = ({ selected, onToggle }) => (
+    <div className="grid grid-cols-2 gap-3">
+      <label className="relative cursor-pointer">
+        <input type="checkbox" checked={selected.includes('issue')} onChange={() => onToggle('issue')} className="sr-only" />
+        <div className={`border rounded-lg p-4 text-center transition-all duration-200 ${selected.includes('issue') ? 'border-primary-500 bg-primary-50' : 'border-secondary-200 hover:border-secondary-300'}`}>
+          <Ticket className={`h-6 w-6 mx-auto mb-2 ${selected.includes('issue') ? 'text-primary-600' : 'text-secondary-400'}`} />
+          <div className={`font-medium ${selected.includes('issue') ? 'text-primary-900' : 'text-secondary-700'}`}>Ticketer</div>
+          <div className="text-xs text-secondary-500 mt-1">Can issue tickets</div>
+        </div>
+      </label>
+      <label className="relative cursor-pointer">
+        <input type="checkbox" checked={selected.includes('scan')} onChange={() => onToggle('scan')} className="sr-only" />
+        <div className={`border rounded-lg p-4 text-center transition-all duration-200 ${selected.includes('scan') ? 'border-primary-500 bg-primary-50' : 'border-secondary-200 hover:border-secondary-300'}`}>
+          <Scan className={`h-6 w-6 mx-auto mb-2 ${selected.includes('scan') ? 'text-primary-600' : 'text-secondary-400'}`} />
+          <div className={`font-medium ${selected.includes('scan') ? 'text-primary-900' : 'text-secondary-700'}`}>Scanner</div>
+          <div className="text-xs text-secondary-500 mt-1">Can scan tickets</div>
+        </div>
+      </label>
+    </div>
+  );
 
   if (isLoading) return <LoadingSpinner />;
 
@@ -105,7 +150,7 @@ const ManageUsers = () => {
           </div>
         </div>
 
-        {error && !showCreateModal && (
+        {error && !showCreateModal && !editUser && (
           <div className="bg-red-50 border border-red-200 rounded-lg p-4 flex items-center space-x-2 text-red-700">
             <AlertCircle size={16} /><span className="text-sm">{error}</span>
           </div>
@@ -144,10 +189,17 @@ const ManageUsers = () => {
                 </div>
               </div>
 
-              {u.online && u.id !== currentUser?.id && (
-                <button onClick={() => handleForceLogout(u)} className="mt-4 w-full btn-secondary text-sm flex items-center justify-center space-x-2">
-                  <LogOut size={14} /><span>Force logout</span>
-                </button>
+              {u.role !== 'admin' && (
+                <div className="mt-4 flex gap-2">
+                  <button onClick={() => openEdit(u)} className="flex-1 btn-secondary text-sm flex items-center justify-center space-x-2">
+                    <Pencil size={14} /><span>Edit roles</span>
+                  </button>
+                  {u.online && u.id !== currentUser?.id && (
+                    <button onClick={() => handleForceLogout(u)} className="flex-1 btn-secondary text-sm flex items-center justify-center space-x-2">
+                      <LogOut size={14} /><span>Force logout</span>
+                    </button>
+                  )}
+                </div>
               )}
             </div>
           ))}
@@ -208,29 +260,11 @@ const ManageUsers = () => {
 
                   <div>
                     <label className="block text-sm font-medium text-secondary-700 mb-3">Roles * (pick one or both)</label>
-                    <div className="grid grid-cols-2 gap-3">
-                      <label className={`relative cursor-pointer ${isCreating ? 'cursor-not-allowed opacity-50' : ''}`}>
-                        <input type="checkbox" checked={newUser.permissions.includes('issue')} onChange={() => togglePerm('issue')} disabled={isCreating} className="sr-only" />
-                        <div className={`border rounded-lg p-4 text-center transition-all duration-200 ${newUser.permissions.includes('issue') ? 'border-primary-500 bg-primary-50' : 'border-secondary-200 hover:border-secondary-300'}`}>
-                          <Ticket className={`h-6 w-6 mx-auto mb-2 ${newUser.permissions.includes('issue') ? 'text-primary-600' : 'text-secondary-400'}`} />
-                          <div className={`font-medium ${newUser.permissions.includes('issue') ? 'text-primary-900' : 'text-secondary-700'}`}>Ticketer</div>
-                          <div className="text-xs text-secondary-500 mt-1">Can issue tickets</div>
-                        </div>
-                      </label>
-
-                      <label className={`relative cursor-pointer ${isCreating ? 'cursor-not-allowed opacity-50' : ''}`}>
-                        <input type="checkbox" checked={newUser.permissions.includes('scan')} onChange={() => togglePerm('scan')} disabled={isCreating} className="sr-only" />
-                        <div className={`border rounded-lg p-4 text-center transition-all duration-200 ${newUser.permissions.includes('scan') ? 'border-primary-500 bg-primary-50' : 'border-secondary-200 hover:border-secondary-300'}`}>
-                          <Scan className={`h-6 w-6 mx-auto mb-2 ${newUser.permissions.includes('scan') ? 'text-primary-600' : 'text-secondary-400'}`} />
-                          <div className={`font-medium ${newUser.permissions.includes('scan') ? 'text-primary-900' : 'text-secondary-700'}`}>Scanner</div>
-                          <div className="text-xs text-secondary-500 mt-1">Can scan tickets</div>
-                        </div>
-                      </label>
-                    </div>
+                    <PermPicker selected={newUser.permissions} onToggle={togglePerm} />
                   </div>
 
                   <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-                    <p className="text-sm text-blue-800">A person can be a Ticketer, a Scanner, or both. Only you (the super admin) can see analysis and monitoring.</p>
+                    <p className="text-sm text-blue-800">A person can be a Ticketer, a Scanner, or both. You can change their roles later with Edit roles.</p>
                   </div>
                 </div>
 
@@ -241,6 +275,34 @@ const ManageUsers = () => {
                   </button>
                 </div>
               </form>
+            </div>
+          </div>
+        )}
+
+        {editUser && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+            <div className="bg-white rounded-lg shadow-hard max-w-md w-full">
+              <div className="flex items-center justify-between p-6 border-b border-secondary-200">
+                <h2 className="text-xl font-semibold text-secondary-900">Edit roles: {editUser.username}</h2>
+                <button onClick={closeEdit} className="p-2 hover:bg-secondary-100 rounded-lg transition-colors duration-200"><X size={20} /></button>
+              </div>
+              <div className="p-6 space-y-6">
+                {error && (
+                  <div className="bg-red-50 border border-red-200 rounded-lg p-4 flex items-center space-x-2 text-red-700">
+                    <AlertCircle size={16} /><span className="text-sm">{error}</span>
+                  </div>
+                )}
+                <PermPicker selected={editPerms} onToggle={toggleEditPerm} />
+                <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                  <p className="text-sm text-blue-800">Tip: during voting keep them as Ticketer. On the pool party day, tick Scanner too and save.</p>
+                </div>
+              </div>
+              <div className="flex items-center justify-end space-x-3 p-6 border-t border-secondary-200">
+                <button onClick={closeEdit} disabled={isSaving} className="btn-secondary disabled:opacity-50 disabled:cursor-not-allowed">Cancel</button>
+                <button onClick={saveEdit} disabled={isSaving} className="btn-primary flex items-center space-x-2 disabled:opacity-50 disabled:cursor-not-allowed">
+                  {isSaving ? (<><div className="loading-spinner" /><span>Saving...</span></>) : (<span>Save roles</span>)}
+                </button>
+              </div>
             </div>
           </div>
         )}
