@@ -16,7 +16,10 @@ export const AuthProvider = ({ children }) => {
   const [isLoading, setIsLoading] = useState(true);
   const navigate = useNavigate();
 
-  useEffect(() => { loadStoredAuth(); }, []);
+  useEffect(() => {
+    loadStoredAuth();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const loadStoredAuth = async () => {
     try {
@@ -25,6 +28,16 @@ export const AuthProvider = ({ children }) => {
       if (storedToken && storedUser) {
         setToken(storedToken);
         setUser(JSON.parse(storedUser));
+        // Refresh from the server so role changes and ended sessions apply on reload
+        try {
+          const resp = await api.getProfile();
+          if (resp?.data?.user) {
+            setUser(resp.data.user);
+            localStorage.setItem('user', JSON.stringify(resp.data.user));
+          }
+        } catch (e) {
+          // a 401 is handled by the interceptor (clears session)
+        }
       }
     } catch (error) {
       localStorage.removeItem('token');
@@ -56,11 +69,7 @@ export const AuthProvider = ({ children }) => {
   };
 
   const logout = async () => {
-    try {
-      await api.logout();
-    } catch (error) {
-      // ignore network/logout errors, clear locally anyway
-    }
+    try { await api.logout(); } catch (e) { /* clear locally anyway */ }
     localStorage.removeItem('token');
     localStorage.removeItem('user');
     setToken(null);
@@ -68,10 +77,19 @@ export const AuthProvider = ({ children }) => {
     navigate('/');
   };
 
+  const changePassword = async (currentPassword, newPassword) => {
+    try {
+      const resp = await api.changePassword(currentPassword, newPassword);
+      return { success: !!resp?.success };
+    } catch (error) {
+      return { success: false, error: error.message };
+    }
+  };
+
   const isAdmin = user?.role === 'admin';
   const canIssue = isAdmin || (user?.permissions || []).includes('issue');
   const canScan = isAdmin || (user?.permissions || []).includes('scan');
 
-  const value = { user, token, isLoading, login, logout, isAdmin, canIssue, canScan };
+  const value = { user, token, isLoading, login, logout, changePassword, isAdmin, canIssue, canScan };
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 };

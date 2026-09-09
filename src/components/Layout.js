@@ -1,12 +1,11 @@
 import React, { useState } from 'react';
-import { Link, useLocation, useNavigate } from 'react-router-dom';
+import { Link, useLocation } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
-import { Menu, X, LayoutDashboard, Ticket, Scan, Users, LogOut, ChevronDown, Activity } from 'lucide-react';
+import { Menu, X, LayoutDashboard, Ticket, Scan, Users, LogOut, ChevronDown, Activity, Search, KeyRound } from 'lucide-react';
 
 const Layout = ({ children }) => {
   const { user, logout, isAdmin, canIssue, canScan } = useAuth();
   const location = useLocation();
-  const navigate = useNavigate();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
 
@@ -16,6 +15,7 @@ const Layout = ({ children }) => {
     ...(canScan ? [{ name: 'Scan QR Code', href: '/scan-ticket', icon: Scan }] : []),
     ...(isAdmin
       ? [
+          { name: 'Tickets', href: '/tickets', icon: Search },
           { name: 'Manage Users', href: '/manage-users', icon: Users },
           { name: 'Activity Monitor', href: '/activity-monitor', icon: Activity },
         ]
@@ -26,10 +26,7 @@ const Layout = ({ children }) => {
     ? 'Super Admin'
     : [canIssue && 'Ticketer', canScan && 'Scanner'].filter(Boolean).join(' & ') || 'Staff';
 
-  const handleLogout = async () => {
-    await logout();
-    navigate('/');
-  };
+  const handleLogout = async () => { await logout(); };
 
   const toggleMobileMenu = () => setIsMobileMenuOpen(!isMobileMenuOpen);
   const closeMobileMenu = () => setIsMobileMenuOpen(false);
@@ -60,9 +57,7 @@ const Layout = ({ children }) => {
                     key={item.name}
                     to={item.href}
                     className={`px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 flex items-center space-x-2 ${
-                      isActive
-                        ? 'bg-primary-100 text-primary-700 shadow-soft'
-                        : 'text-secondary-600 hover:text-secondary-900 hover:bg-secondary-50'
+                      isActive ? 'bg-primary-100 text-primary-700 shadow-soft' : 'text-secondary-600 hover:text-secondary-900 hover:bg-secondary-50'
                     }`}
                   >
                     <Icon size={16} />
@@ -74,14 +69,9 @@ const Layout = ({ children }) => {
 
             <div className="flex items-center space-x-4">
               <div className="relative">
-                <button
-                  onClick={() => setIsUserMenuOpen(!isUserMenuOpen)}
-                  className="flex items-center space-x-3 px-3 py-2 rounded-lg hover:bg-secondary-50 transition-colors duration-200"
-                >
+                <button onClick={() => setIsUserMenuOpen(!isUserMenuOpen)} className="flex items-center space-x-3 px-3 py-2 rounded-lg hover:bg-secondary-50 transition-colors duration-200">
                   <div className="w-8 h-8 bg-primary-600 rounded-full flex items-center justify-center">
-                    <span className="text-white text-sm font-semibold">
-                      {user?.username?.charAt(0).toUpperCase()}
-                    </span>
+                    <span className="text-white text-sm font-semibold">{user?.username?.charAt(0).toUpperCase()}</span>
                   </div>
                   <div className="hidden md:block text-left">
                     <p className="text-sm font-medium text-secondary-900">{user?.username}</p>
@@ -97,15 +87,14 @@ const Layout = ({ children }) => {
                       <div className="p-4 border-b border-secondary-100">
                         <p className="text-sm font-medium text-secondary-900">{user?.username}</p>
                         <p className="text-sm text-secondary-500">{user?.email}</p>
-                        <span className={`inline-block mt-2 badge ${isAdmin ? 'badge-admin' : 'badge-issuer'}`}>
-                          {roleLabel}
-                        </span>
+                        <span className={`inline-block mt-2 badge ${isAdmin ? 'badge-admin' : 'badge-issuer'}`}>{roleLabel}</span>
                       </div>
                       <div className="p-2">
-                        <button
-                          onClick={handleLogout}
-                          className="w-full flex items-center space-x-2 px-3 py-2 text-sm text-red-600 hover:bg-red-50 rounded-md transition-colors duration-200"
-                        >
+                        <Link to="/change-password" onClick={() => setIsUserMenuOpen(false)} className="w-full flex items-center space-x-2 px-3 py-2 text-sm text-secondary-700 hover:bg-secondary-50 rounded-md transition-colors duration-200">
+                          <KeyRound size={16} />
+                          <span>Change password</span>
+                        </Link>
+                        <button onClick={handleLogout} className="w-full flex items-center space-x-2 px-3 py-2 text-sm text-red-600 hover:bg-red-50 rounded-md transition-colors duration-200">
                           <LogOut size={16} />
                           <span>Sign out</span>
                         </button>
@@ -115,10 +104,7 @@ const Layout = ({ children }) => {
                 )}
               </div>
 
-              <button
-                onClick={toggleMobileMenu}
-                className="md:hidden p-2 rounded-lg hover:bg-secondary-100 transition-colors duration-200"
-              >
+              <button onClick={toggleMobileMenu} className="md:hidden p-2 rounded-lg hover:bg-secondary-100 transition-colors duration-200">
                 {isMobileMenuOpen ? <X size={20} /> : <Menu size={20} />}
               </button>
             </div>
@@ -140,9 +126,7 @@ const Layout = ({ children }) => {
                     to={item.href}
                     onClick={closeMobileMenu}
                     className={`flex items-center space-x-3 px-4 py-3 rounded-lg text-sm font-medium transition-all duration-200 ${
-                      isActive
-                        ? 'bg-primary-100 text-primary-700 shadow-soft'
-                        : 'text-secondary-600 hover:text-secondary-900 hover:bg-secondary-50'
+                      isActive ? 'bg-primary-100 text-primary-700 shadow-soft' : 'text-secondary-600 hover:text-secondary-900 hover:bg-secondary-50'
                     }`}
                   >
                     <Icon size={20} />
@@ -150,6 +134,10 @@ const Layout = ({ children }) => {
                   </Link>
                 );
               })}
+              <Link to="/change-password" onClick={closeMobileMenu} className="flex items-center space-x-3 px-4 py-3 rounded-lg text-sm font-medium text-secondary-600 hover:bg-secondary-50">
+                <KeyRound size={20} />
+                <span>Change password</span>
+              </Link>
             </nav>
           </div>
         </>

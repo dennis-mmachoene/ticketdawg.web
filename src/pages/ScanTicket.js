@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { api } from '../services/api';
 import { Html5Qrcode } from 'html5-qrcode';
-import { Camera, CameraOff, RotateCcw, CheckCircle, XCircle, AlertTriangle, Scan, Clock } from 'lucide-react';
+import { Camera, CameraOff, RotateCcw, CheckCircle, XCircle, AlertTriangle, Scan, Clock, Keyboard } from 'lucide-react';
 
 const ScanTicket = () => {
   const [isScanning, setIsScanning] = useState(false);
@@ -9,9 +9,10 @@ const ScanTicket = () => {
   const [lastScannedTicket, setLastScannedTicket] = useState(null);
   const [scanResult, setScanResult] = useState(null);
   const [error, setError] = useState('');
+  const [manualId, setManualId] = useState('');
+  const [manualBusy, setManualBusy] = useState(false);
 
   const html5QrcodeRef = useRef(null);
-  // Synchronous locks (refs) so the camera's rapid re-fires cannot double-submit.
   const isValidatingRef = useRef(false);
   const lastScanRef = useRef({ code: null, at: 0 });
   const isScanningRef = useRef(false);
@@ -24,12 +25,34 @@ const ScanTicket = () => {
     };
   }, []);
 
+  const applySuccess = (data) => {
+    setLastScannedTicket(data);
+    setScanResult({ type: 'success', title: 'Ticket Validated ✅', message: `${data.email || data.ticketID} is checked in.` });
+  };
+
+  const applyError = (err) => {
+    let type = 'error';
+    let title = 'Validation Error';
+    let message = err.message || 'Failed to validate ticket';
+    const m = err.message || '';
+    if (m.includes('Invalid')) { title = 'Invalid Ticket ❌'; message = 'This is not a valid ticket.'; }
+    else if (m.includes('not assigned')) { type = 'warning'; title = 'Unassigned Ticket ⚠️'; message = 'This ticket has not been issued to anyone yet.'; }
+    else if (m.includes('already used')) {
+      title = 'Already Used ❌';
+      const when = err.data?.usedAt ? ` at ${new Date(err.data.usedAt).toLocaleTimeString()}` : '';
+      const who = err.data?.usedBy ? ` by ${err.data.usedBy}` : '';
+      message = `This ticket was already used${when}${who}.`;
+    }
+    setScanResult({ type, title, message });
+  };
+
   const startScanning = async () => {
     try {
       setError('');
       setScanResult(null);
       try {
-        await navigator.mediaDevices.getUserMedia({ video: true });
+        const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+        stream.getTracks().forEach((t) => t.stop()); // release immediately; html5-qrcode opens its own
       } catch (err) {
         setError('Camera permission denied. Please enable camera access and try again.');
         return;
@@ -42,12 +65,9 @@ const ScanTicket = () => {
         try {
           const el = document.getElementById('qr-reader');
           if (!el) throw new Error('QR reader element not found in DOM');
-
           const html5QrCode = new Html5Qrcode('qr-reader');
           html5QrcodeRef.current = html5QrCode;
-
-          const config = { fps: 10, qrbox: { width: 250, height: 250 }, aspectRatio: 1.777778 };
-          await html5QrCode.start({ facingMode: 'environment' }, config, onScanSuccess, onScanFailure);
+          await html5QrCode.start({ facingMode: 'environment' }, { fps: 10, qrbox: { width: 250, height: 250 }, aspectRatio: 1.777778 }, onScanSuccess, () => {});
         } catch (err) {
           setError(`Failed to start camera: ${err.message}`);
           setIsScanning(false);
@@ -67,18 +87,12 @@ const ScanTicket = () => {
     isScanningRef.current = false;
     setIsScanning(false);
     if (instance) {
-      try {
-        await instance.stop();
-        await instance.clear();
-      } catch (err) {
-        // already stopped, ignore
-      }
+      try { await instance.stop(); await instance.clear(); } catch (err) { /* already stopped */ }
     }
   };
 
   const onScanSuccess = async (decodedText) => {
     const now = Date.now();
-    // Hard guards against the burst of duplicate reads from the camera.
     if (isValidatingRef.current) return;
     if (decodedText === lastScanRef.current.code && now - lastScanRef.current.at < 6000) return;
 
@@ -91,63 +105,49 @@ const ScanTicket = () => {
 
     try {
       const response = await api.validateTicket(decodedText);
-      setLastScannedTicket(response.data);
-      setScanResult({
-        type: 'success',
-        title: 'Ticket Validated ✅',
-        message: `${response.data.email || response.data.ticketID} is checked in.`,
-      });
+      applySuccess(response.data);
     } catch (err) {
-      let resultType = 'error';
-      let resultTitle = 'Validation Error';
-      let resultMessage = 'Failed to validate ticket';
-      if (err.message.includes('Invalid QR code')) {
-        resultTitle = 'Invalid Ticket ❌';
-        resultMessage = 'This QR code is not a valid ticket.';
-      } else if (err.message.includes('not assigned')) {
-        resultTitle = 'Unassigned Ticket ⚠️';
-        resultMessage = 'This ticket has not been issued to anyone yet.';
-        resultType = 'warning';
-      } else if (err.message.includes('already used')) {
-        resultTitle = 'Already Used ❌';
-        resultMessage = 'This ticket has already been used for entry.';
-      } else if (err.message) {
-        resultMessage = err.message;
-      }
-      setScanResult({ type: resultType, title: resultTitle, message: resultMessage });
+      applyError(err);
     } finally {
       setIsValidating(false);
       isValidatingRef.current = false;
     }
   };
 
-  const onScanFailure = () => {
-    // No QR in view yet; ignore.
+  const onManualCheckin = async (e) => {
+    e.preventDefault();
+    if (!manualId.trim()) return;
+    setManualBusy(true);
+    setScanResult(null);
+    setError('');
+    try {
+      const r = await api.checkInByTicketId(manualId.trim());
+      applySuccess(r.data);
+      setManualId('');
+    } catch (err) {
+      applyError(err);
+    } finally {
+      setManualBusy(false);
+    }
   };
 
   const scanNext = async () => {
     setScanResult(null);
     setLastScannedTicket(null);
     setError('');
-    // Allow the same code to be scanned again on a fresh, deliberate scan.
     lastScanRef.current = { code: null, at: 0 };
     await startScanning();
   };
 
   const getScanResultIcon = () => {
-    switch (scanResult?.type) {
-      case 'success': return <CheckCircle className="h-8 w-8 text-green-600" />;
-      case 'warning': return <AlertTriangle className="h-8 w-8 text-yellow-600" />;
-      default: return <XCircle className="h-8 w-8 text-red-600" />;
-    }
+    if (scanResult?.type === 'success') return <CheckCircle className="h-8 w-8 text-green-600" />;
+    if (scanResult?.type === 'warning') return <AlertTriangle className="h-8 w-8 text-yellow-600" />;
+    return <XCircle className="h-8 w-8 text-red-600" />;
   };
-
   const getScanResultBgColor = () => {
-    switch (scanResult?.type) {
-      case 'success': return 'bg-green-50 border-green-200';
-      case 'warning': return 'bg-yellow-50 border-yellow-200';
-      default: return 'bg-red-50 border-red-200';
-    }
+    if (scanResult?.type === 'success') return 'bg-green-50 border-green-200';
+    if (scanResult?.type === 'warning') return 'bg-yellow-50 border-yellow-200';
+    return 'bg-red-50 border-red-200';
   };
 
   return (
@@ -164,21 +164,14 @@ const ScanTicket = () => {
               <div className="text-center">
                 {!isScanning ? (
                   <div className="space-y-6">
-                    <div className="w-24 h-24 bg-primary-100 rounded-full flex items-center justify-center mx-auto">
-                      <Scan className="h-10 w-10 text-primary-600" />
-                    </div>
+                    <div className="w-24 h-24 bg-primary-100 rounded-full flex items-center justify-center mx-auto"><Scan className="h-10 w-10 text-primary-600" /></div>
                     <div>
                       <h3 className="text-xl font-semibold text-secondary-900 mb-2">Ready to Scan</h3>
                       <p className="text-secondary-600 mb-6">Tap below to start the camera and scan a ticket QR code</p>
                     </div>
-                    {error && (
-                      <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-4">
-                        <p className="text-red-700 text-sm">{error}</p>
-                      </div>
-                    )}
+                    {error && <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-4"><p className="text-red-700 text-sm">{error}</p></div>}
                     <button onClick={scanResult ? scanNext : startScanning} className="btn-primary flex items-center space-x-2 mx-auto">
-                      <Camera size={16} />
-                      <span>{scanResult ? 'Scan Next Ticket' : 'Start Scanner'}</span>
+                      <Camera size={16} /><span>{scanResult ? 'Scan Next Ticket' : 'Start Scanner'}</span>
                     </button>
                   </div>
                 ) : (
@@ -187,17 +180,12 @@ const ScanTicket = () => {
                       <div id="qr-reader" className="w-full h-full"></div>
                       {isValidating && (
                         <div className="absolute inset-0 bg-black bg-opacity-50 flex items-center justify-center z-10">
-                          <div className="bg-white rounded-lg p-6 text-center">
-                            <div className="loading-spinner mx-auto mb-2"></div>
-                            <p className="text-secondary-700">Validating ticket...</p>
-                          </div>
+                          <div className="bg-white rounded-lg p-6 text-center"><div className="loading-spinner mx-auto mb-2"></div><p className="text-secondary-700">Validating ticket...</p></div>
                         </div>
                       )}
                     </div>
                     <div className="flex justify-center space-x-4">
-                      <button onClick={stopScanning} disabled={isValidating} className="btn-secondary flex items-center space-x-2 disabled:opacity-50">
-                        <CameraOff size={16} /><span>Stop Scanner</span>
-                      </button>
+                      <button onClick={stopScanning} disabled={isValidating} className="btn-secondary flex items-center space-x-2 disabled:opacity-50"><CameraOff size={16} /><span>Stop Scanner</span></button>
                     </div>
                   </div>
                 )}
@@ -211,9 +199,7 @@ const ScanTicket = () => {
                   <div className="flex-1">
                     <h3 className="text-lg font-semibold text-secondary-900 mb-2">{scanResult.title}</h3>
                     <p className="text-secondary-700">{scanResult.message}</p>
-                    <button onClick={scanNext} className="btn-primary mt-4 flex items-center space-x-2">
-                      <RotateCcw size={16} /><span>Scan Next Ticket</span>
-                    </button>
+                    <button onClick={scanNext} className="btn-primary mt-4 flex items-center space-x-2"><RotateCcw size={16} /><span>Scan Next Ticket</span></button>
                   </div>
                 </div>
               </div>
@@ -223,21 +209,9 @@ const ScanTicket = () => {
               <div className="card bg-green-50 border-green-200">
                 <h3 className="text-lg font-semibold text-green-900 mb-4">Last Validated Ticket</h3>
                 <div className="space-y-2 text-sm">
-                  <div className="flex justify-between items-center py-2 border-b border-green-200">
-                    <span className="font-medium text-green-800">Ticket ID:</span>
-                    <span className="text-green-700 font-mono">{lastScannedTicket.ticketID}</span>
-                  </div>
-                  <div className="flex justify-between items-center py-2 border-b border-green-200">
-                    <span className="font-medium text-green-800">Email:</span>
-                    <span className="text-green-700">{lastScannedTicket.email}</span>
-                  </div>
-                  <div className="flex justify-between items-center py-2">
-                    <span className="font-medium text-green-800">Validated At:</span>
-                    <span className="text-green-700 flex items-center space-x-1">
-                      <Clock size={12} />
-                      <span>{lastScannedTicket.usedAt ? new Date(lastScannedTicket.usedAt).toLocaleString() : ''}</span>
-                    </span>
-                  </div>
+                  <div className="flex justify-between items-center py-2 border-b border-green-200"><span className="font-medium text-green-800">Ticket ID:</span><span className="text-green-700 font-mono">{lastScannedTicket.ticketID}</span></div>
+                  <div className="flex justify-between items-center py-2 border-b border-green-200"><span className="font-medium text-green-800">Email:</span><span className="text-green-700">{lastScannedTicket.email}</span></div>
+                  <div className="flex justify-between items-center py-2"><span className="font-medium text-green-800">Validated At:</span><span className="text-green-700 flex items-center space-x-1"><Clock size={12} /><span>{lastScannedTicket.usedAt ? new Date(lastScannedTicket.usedAt).toLocaleString() : ''}</span></span></div>
                 </div>
               </div>
             )}
@@ -253,18 +227,18 @@ const ScanTicket = () => {
               </ul>
             </div>
 
-            <div className="card">
-              <h3 className="text-lg font-semibold text-secondary-900 mb-4">Validation Status</h3>
-              <div className="space-y-3 text-sm">
-                <div className="flex items-center space-x-2"><CheckCircle size={16} className="text-green-600" /><span className="text-secondary-700">Valid - Allow Entry</span></div>
-                <div className="flex items-center space-x-2"><AlertTriangle size={16} className="text-yellow-600" /><span className="text-secondary-700">Warning - Check Manually</span></div>
-                <div className="flex items-center space-x-2"><XCircle size={16} className="text-red-600" /><span className="text-secondary-700">Invalid or Used - Deny Entry</span></div>
-              </div>
+            <div className="card border-l-4 border-l-blue-500">
+              <h3 className="text-lg font-semibold text-secondary-900 mb-2 flex items-center space-x-2"><Keyboard size={18} /><span>Manual check-in</span></h3>
+              <p className="text-sm text-secondary-600">Camera won't scan? Type the Ticket ID printed on the PDF.</p>
+              <form onSubmit={onManualCheckin} className="mt-3 space-y-3">
+                <input value={manualId} onChange={(e) => setManualId(e.target.value)} className="input" placeholder="e.g. ASAMTT3M3TREAXU0" />
+                <button type="submit" disabled={manualBusy} className="btn-primary w-full disabled:opacity-50">{manualBusy ? 'Checking...' : 'Check in by ID'}</button>
+              </form>
             </div>
 
             <div className="card bg-blue-50 border-blue-200">
-              <h4 className="font-semibold text-blue-900 mb-2">📱 Camera Access Required</h4>
-              <p className="text-blue-700 text-sm">This uses your camera to scan QR codes. Please allow camera access when asked. The site must be opened over https for the camera to work.</p>
+              <h4 className="font-semibold text-blue-900 mb-2">📱 Camera Access</h4>
+              <p className="text-blue-700 text-sm">This uses your camera to scan QR codes. Allow camera access when asked. The site must be opened over https for the camera to work.</p>
             </div>
           </div>
         </div>

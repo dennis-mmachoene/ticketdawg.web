@@ -12,10 +12,14 @@ const Dashboard = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [ticketCount, setTicketCount] = useState(65);
+  const [addCount, setAddCount] = useState(10);
   const [busy, setBusy] = useState(false);
   const [setupMsg, setSetupMsg] = useState('');
 
-  useEffect(() => { loadStats(); }, []);
+  useEffect(() => {
+    loadStats();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const loadStats = async (showSpinner = true) => {
     try {
@@ -36,25 +40,26 @@ const Dashboard = () => {
     const n = parseInt(ticketCount, 10);
     if (!n || n < 1) { setSetupMsg('Enter a valid number of tickets'); return; }
     setBusy(true); setSetupMsg('');
-    try {
-      const r = await api.initializeTickets(n);
-      setSetupMsg(`Created ${r.data?.count ?? n} tickets.`);
-      await loadStats(false);
-    } catch (e) {
-      setSetupMsg(e.message || 'Failed to create tickets');
-    } finally { setBusy(false); }
+    try { const r = await api.initializeTickets(n); setSetupMsg(`Created ${r.data?.count ?? n} tickets.`); await loadStats(false); }
+    catch (e) { setSetupMsg(e.message || 'Failed to create tickets'); }
+    finally { setBusy(false); }
+  };
+
+  const handleAddTickets = async () => {
+    const n = parseInt(addCount, 10);
+    if (!n || n < 1) { setSetupMsg('Enter a valid number to add'); return; }
+    setBusy(true); setSetupMsg('');
+    try { const r = await api.addTickets(n); setSetupMsg(`Added ${r.data?.added ?? n} tickets. Existing tickets are unchanged.`); await loadStats(false); }
+    catch (e) { setSetupMsg(e.message || 'Failed to add tickets'); }
+    finally { setBusy(false); }
   };
 
   const handleClearTickets = async () => {
     if (!window.confirm('Delete ALL tickets? Any tickets already emailed will stop working.')) return;
     setBusy(true); setSetupMsg('');
-    try {
-      const r = await api.clearTickets();
-      setSetupMsg(`Cleared ${r.data?.deleted ?? 0} tickets.`);
-      await loadStats(false);
-    } catch (e) {
-      setSetupMsg(e.message || 'Failed to clear tickets');
-    } finally { setBusy(false); }
+    try { const r = await api.clearTickets(); setSetupMsg(`Cleared ${r.data?.deleted ?? 0} tickets.`); await loadStats(false); }
+    catch (e) { setSetupMsg(e.message || 'Failed to clear tickets'); }
+    finally { setBusy(false); }
   };
 
   if (isLoading) return <LoadingSpinner />;
@@ -64,6 +69,7 @@ const Dashboard = () => {
     : [canIssue && 'Ticketer', canScan && 'Scanner'].filter(Boolean).join(' & ') || 'Staff';
 
   const total = stats?.global?.total || 0;
+  const stillExpected = Math.max((stats?.global?.sent || 0) - (stats?.global?.used || 0), 0);
 
   const quickActions = [
     ...(canIssue ? [{ name: 'Issue Ticket', description: 'Give a Pool Party ticket to a student who voted', href: '/issue-ticket', icon: Ticket, color: 'bg-blue-600', hoverColor: 'hover:bg-blue-700' }] : []),
@@ -91,8 +97,8 @@ const Dashboard = () => {
             <div className="grid-stats">
               <StatsCard title="Total Tickets" value={stats.global.total || 0} icon={TrendingUp} color="text-secondary-700" bgColor="bg-secondary-100" description="Available in system" />
               <StatsCard title="Tickets Sent" value={stats.global.sent || 0} icon={Send} color="text-blue-700" bgColor="bg-blue-100" description="Issued to students" />
-              <StatsCard title="Tickets Used" value={stats.global.used || 0} icon={CheckCircle} color="text-primary-700" bgColor="bg-primary-100" description="Scanned at entrance" />
-              <StatsCard title="Remaining" value={stats.global.remaining || 0} icon={AlertTriangle} color="text-orange-700" bgColor="bg-orange-100" description="Still available" />
+              <StatsCard title="Checked In" value={stats.global.used || 0} icon={CheckCircle} color="text-primary-700" bgColor="bg-primary-100" description="Scanned at entrance" />
+              <StatsCard title="Still Expected" value={stillExpected} icon={AlertTriangle} color="text-orange-700" bgColor="bg-orange-100" description="Sent but not yet in" />
             </div>
           </div>
         )}
@@ -101,12 +107,11 @@ const Dashboard = () => {
           <div>
             <h2 className="text-xl font-semibold text-secondary-900 mb-6">Ticket Setup</h2>
             <div className="card">
-              {setupMsg && (
-                <div className="mb-4 text-sm text-secondary-700 bg-secondary-50 border border-secondary-200 rounded-lg p-3">{setupMsg}</div>
-              )}
+              {setupMsg && <div className="mb-4 text-sm text-secondary-700 bg-secondary-50 border border-secondary-200 rounded-lg p-3">{setupMsg}</div>}
+
               <div className="flex flex-col sm:flex-row sm:items-end gap-4">
                 <div>
-                  <label className="block text-sm font-medium text-secondary-700 mb-2">Number of tickets to create</label>
+                  <label className="block text-sm font-medium text-secondary-700 mb-2">Create a fresh batch</label>
                   <input type="number" min="1" value={ticketCount} onChange={(e) => setTicketCount(e.target.value)} className="input w-40" disabled={busy || total > 0} />
                 </div>
                 <button onClick={handleCreateTickets} disabled={busy || total > 0} className="btn-primary flex items-center space-x-2 disabled:opacity-50 disabled:cursor-not-allowed">
@@ -116,11 +121,22 @@ const Dashboard = () => {
                   <Trash2 size={16} /><span>Clear all tickets</span>
                 </button>
               </div>
-              {total > 0 ? (
-                <p className="text-xs text-secondary-500 mt-3">There are {total} tickets. Clear them first to create a fresh batch.</p>
-              ) : (
-                <p className="text-xs text-secondary-500 mt-3">No tickets yet. Create a batch to start issuing.</p>
-              )}
+
+              <div className="mt-6 pt-6 border-t border-secondary-100">
+                <div className="flex flex-col sm:flex-row sm:items-end gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-secondary-700 mb-2">Add more (keeps existing tickets)</label>
+                    <input type="number" min="1" value={addCount} onChange={(e) => setAddCount(e.target.value)} className="input w-40" disabled={busy} />
+                  </div>
+                  <button onClick={handleAddTickets} disabled={busy} className="btn-secondary flex items-center space-x-2 disabled:opacity-50 disabled:cursor-not-allowed">
+                    <PlusCircle size={16} /><span>Add tickets</span>
+                  </button>
+                </div>
+              </div>
+
+              <p className="text-xs text-secondary-500 mt-4">
+                {total > 0 ? `There are ${total} tickets. Clear them to start a fresh batch, or add more without wiping.` : 'No tickets yet. Create a batch to start issuing.'}
+              </p>
             </div>
           </div>
         )}
@@ -129,12 +145,8 @@ const Dashboard = () => {
           <div>
             <h2 className="text-xl font-semibold text-secondary-900 mb-6">Your Statistics</h2>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              {canIssue && (
-                <StatsCard title="Tickets Issued" value={stats.personal.ticketsIssued} icon={Ticket} color="text-purple-700" bgColor="bg-purple-100" description="Issued by you" />
-              )}
-              {canScan && (
-                <StatsCard title="Tickets Scanned" value={stats.personal.ticketsScanned} icon={Scan} color="text-green-700" bgColor="bg-green-100" description="Scanned by you" />
-              )}
+              {canIssue && <StatsCard title="Tickets Issued" value={stats.personal.ticketsIssued} icon={Ticket} color="text-purple-700" bgColor="bg-purple-100" description="Issued by you" />}
+              {canScan && <StatsCard title="Tickets Scanned" value={stats.personal.ticketsScanned} icon={Scan} color="text-green-700" bgColor="bg-green-100" description="Scanned by you" />}
             </div>
           </div>
         )}
