@@ -9,6 +9,8 @@ const statusMeta = {
   used: { label: 'Checked in', cls: 'bg-green-100 text-green-700' },
 };
 
+const LIMIT = 25;
+
 const Tickets = () => {
   const [tickets, setTickets] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -18,22 +20,31 @@ const Tickets = () => {
   const [error, setError] = useState('');
   const [actingId, setActingId] = useState('');
 
+  const [page, setPage] = useState(1);
+  const [pagination, setPagination] = useState(null);
+
   const [checkinId, setCheckinId] = useState('');
   const [checkinResult, setCheckinResult] = useState(null);
   const [checkingIn, setCheckingIn] = useState(false);
 
   useEffect(() => {
-    loadTickets();
+    loadTickets(1);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const loadTickets = async () => {
+  const loadTickets = async (p = page) => {
     setIsLoading(true); setError(''); setMsg('');
     try {
-      let resp;
-      if (query.trim()) resp = await api.searchTickets(query.trim());
-      else resp = await api.getAllTickets({ status: statusFilter, limit: 500 });
-      setTickets(resp.data.tickets || []);
+      if (query.trim()) {
+        const resp = await api.searchTickets(query.trim());
+        setTickets(resp.data.tickets || []);
+        setPagination(null); // search returns all matches for that email, no paging needed
+      } else {
+        const resp = await api.getAllTickets({ status: statusFilter, page: p, limit: LIMIT });
+        setTickets(resp.data.tickets || []);
+        setPagination(resp.data.pagination || null);
+        setPage(resp.data.pagination?.currentPage || p);
+      }
     } catch (e) {
       setError(e.message || 'Failed to load tickets');
     } finally {
@@ -41,7 +52,8 @@ const Tickets = () => {
     }
   };
 
-  const onSearch = (e) => { e.preventDefault(); loadTickets(); };
+  const onSearch = (e) => { e.preventDefault(); setPage(1); loadTickets(1); };
+  const goPage = (p) => { setPage(p); loadTickets(p); };
 
   const doResend = async (t) => {
     setActingId(t._id); setMsg(''); setError('');
@@ -134,7 +146,7 @@ const Tickets = () => {
           <div className="card overflow-hidden">
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-lg font-semibold text-secondary-900">Results</h3>
-              <span className="text-sm text-secondary-500">{tickets.length} ticket(s)</span>
+              <span className="text-sm text-secondary-500">{pagination ? `${pagination.totalItems} ticket(s) total` : `${tickets.length} ticket(s)`}</span>
             </div>
             <div className="overflow-x-auto">
               <table className="min-w-full divide-y divide-secondary-200">
@@ -175,6 +187,14 @@ const Tickets = () => {
               </table>
               {tickets.length === 0 && <p className="text-center text-secondary-500 py-8">No tickets found.</p>}
             </div>
+
+            {pagination && pagination.totalPages > 1 && (
+              <div className="flex items-center justify-between mt-4 pt-4 border-t border-secondary-100">
+                <button disabled={page <= 1} onClick={() => goPage(page - 1)} className="btn-secondary disabled:opacity-50 disabled:cursor-not-allowed">Previous</button>
+                <span className="text-sm text-secondary-600">Page {pagination.currentPage} of {pagination.totalPages}</span>
+                <button disabled={page >= pagination.totalPages} onClick={() => goPage(page + 1)} className="btn-secondary disabled:opacity-50 disabled:cursor-not-allowed">Next</button>
+              </div>
+            )}
           </div>
         )}
       </div>

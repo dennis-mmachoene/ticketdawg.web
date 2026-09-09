@@ -42,9 +42,9 @@ const ActivityMonitor = () => {
       .filter(Boolean).join('  ');
 
   const exportCSV = () => {
-    const rows = [['Timestamp', 'User', 'Role', 'Action', 'Result', 'Details']];
+    const rows = [['Timestamp', 'User', 'Role', 'Action', 'Result', 'Reason', 'Details']];
     logs.forEach((l) => rows.push([
-      new Date(l.timestamp).toLocaleString(), l.user?.username || '', l.user?.role || '', l.action, l.result, detailText(l.details),
+      new Date(l.timestamp).toLocaleString(), l.user?.username || '', l.user?.role || '', l.action, l.result, l.errorMessage || '', detailText(l.details),
     ]));
     const csv = rows.map((r) => r.map((c) => `"${String(c).replace(/"/g, '""')}"`).join(',')).join('\n');
     const blob = new Blob([csv], { type: 'text/csv' });
@@ -171,7 +171,12 @@ const ActivityMonitor = () => {
                     <td className="px-6 py-4 whitespace-nowrap">
                       <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getActionColor(log.action)}`}>{log.action.replace(/_/g, ' ').toUpperCase()}</span>
                     </td>
-                    <td className="px-6 py-4 text-sm text-secondary-600">{detailText(log.details)}</td>
+                    <td className="px-6 py-4 text-sm text-secondary-600">
+                      <div>{detailText(log.details)}</div>
+                      {log.result !== 'success' && log.errorMessage && (
+                        <div className={`text-xs mt-1 ${log.result === 'failure' ? 'text-red-600' : 'text-yellow-700'}`}>Reason: {log.errorMessage}</div>
+                      )}
+                    </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div className="flex items-center space-x-2">{getResultIcon(log.result)}<span className="text-sm text-secondary-600 capitalize">{log.result}</span></div>
                     </td>
@@ -211,9 +216,19 @@ const ActivityMonitor = () => {
                   <h4 className="font-semibold text-secondary-900 mb-4">Recent Activity</h4>
                   <div className="space-y-2">
                     {userStats.recentActivity.map((a) => (
-                      <div key={a._id} className="flex items-start justify-between py-2 border-b border-secondary-100">
-                        <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${getActionColor(a.action)}`}>{a.action.replace(/_/g, ' ').toUpperCase()}</span>
-                        <span className="text-xs text-secondary-500">{new Date(a.timestamp).toLocaleString()}</span>
+                      <div key={a._id} className="py-2 border-b border-secondary-100">
+                        <div className="flex items-start justify-between">
+                          <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${getActionColor(a.action)}`}>{a.action.replace(/_/g, ' ').toUpperCase()}</span>
+                          <span className="text-xs text-secondary-500 flex items-center space-x-1">{getResultIcon(a.result)}<span>{new Date(a.timestamp).toLocaleString()}</span></span>
+                        </div>
+                        {(detailText(a.details) || a.errorMessage) && (
+                          <div className="mt-1 text-xs text-secondary-600">
+                            {detailText(a.details)}
+                            {a.result !== 'success' && a.errorMessage && (
+                              <span className={a.result === 'failure' ? 'text-red-600' : 'text-yellow-700'}>{detailText(a.details) ? '  ·  ' : ''}Reason: {a.errorMessage}</span>
+                            )}
+                          </div>
+                        )}
                       </div>
                     ))}
                   </div>

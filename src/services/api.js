@@ -2,6 +2,14 @@ import axios from 'axios';
 
 const API_BASE = process.env.REACT_APP_API_URL || 'https://ticket-dawg-server.onrender.com/api';
 
+// Lightweight browser-side request logger (a "morgan" for the frontend).
+// Successful calls are logged only in development (quiet in production);
+// failed calls are always logged with the server's reason so problems are visible.
+const logApi = (isError, ...args) => {
+  if (isError) { console.error('[api]', ...args); return; }
+  if (process.env.NODE_ENV !== 'production') console.log('[api]', ...args);
+};
+
 class ApiService {
   constructor() {
     this.client = axios.create({ baseURL: API_BASE, headers: { 'Content-Type': 'application/json' } });
@@ -10,23 +18,37 @@ class ApiService {
       (config) => {
         const token = localStorage.getItem('token');
         if (token) config.headers.Authorization = `Bearer ${token}`;
+        config.metadata = { start: Date.now() };
         return config;
       },
       (error) => Promise.reject(error)
     );
 
     this.client.interceptors.response.use(
-      (response) => response.data,
+      (response) => {
+        const cfg = response.config || {};
+        const ms = cfg.metadata ? Date.now() - cfg.metadata.start : 0;
+        logApi(false, response.status, (cfg.method || '').toUpperCase(), cfg.url, `${ms}ms`);
+        return response.data;
+      },
       (error) => {
-        if (error.response?.status === 401) {
+        const cfg = error.config || {};
+        const ms = cfg.metadata ? Date.now() - cfg.metadata.start : 0;
+        const status = error.response?.status;
+        const data = error.response?.data;
+
+        if (status === 401) {
           localStorage.removeItem('token');
           localStorage.removeItem('user');
           if (window.location.pathname !== '/') window.location.href = '/';
         }
-        const data = error.response?.data;
-        const err = new Error(data?.error || error.message || 'Network request failed');
+
+        const reason = data?.error || error.message || 'Network request failed';
+        logApi(true, status || 'ERR', (cfg.method || '').toUpperCase(), cfg.url, `${ms}ms`, '-', reason, data && Object.keys(data).length ? data : '');
+
+        const err = new Error(reason);
         err.data = data; // keep structured fields like usedBy / usedAt / status
-        err.status = error.response?.status;
+        err.status = status;
         return Promise.reject(err);
       }
     );
@@ -50,7 +72,7 @@ class ApiService {
   async checkInByTicketId(ticketID) { return this.client.post('/tickets/checkin', { ticketID }); }
   async getAllTickets(filters = {}) {
     const params = new URLSearchParams();
-    Object.entries(filters).forEach(([k, v]) => { if (v) params.append(k, v.toString()); });
+    Object.entries(filters).forEach(([k, v]) => { if (v !== undefined && v !== null && v !== '') params.append(k, v.toString()); });
     const q = params.toString();
     return this.client.get(`/tickets${q ? '?' + q : ''}`);
   }
@@ -64,7 +86,7 @@ class ApiService {
   // Activity
   async getActivityLogs(filters = {}) {
     const params = new URLSearchParams();
-    Object.entries(filters).forEach(([k, v]) => { if (v) params.append(k, v.toString()); });
+    Object.entries(filters).forEach(([k, v]) => { if (v !== undefined && v !== null && v !== '') params.append(k, v.toString()); });
     const q = params.toString();
     return this.client.get(`/activity/logs${q ? '?' + q : ''}`);
   }
